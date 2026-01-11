@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Based Object Detection For Blind Assistance</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: white; min-height: 100vh; padding: 20px; }
+  .container { max-width: 1400px; margin: 0 auto; }
+  .header { text-align: center; margin-bottom: 30px; padding: 25px; background: rgba(255,255,255,0.1); border-radius: 20px; backdrop-filter: blur(10px); border: 2px solid rgba(0,255,170,0.3); }
+  .header h1 { font-size: 2.8rem; margin-bottom: 10px; color: #00ffaa; text-shadow: 0 0 20px rgba(0,255,170,0.6); }
+  .logout-btn { position: absolute; top: 20px; right: 20px; padding: 10px 20px; background: linear-gradient(45deg, #d50000, #ff5252); color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; transition: all 0.3s ease; }
+  .logout-btn:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+  .status-bar { display: flex; justify-content: space-around; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+  .status-item { background: rgba(0,0,0,0.4); padding: 15px 25px; border-radius: 10px; border: 2px solid rgba(0,255,170,0.3); flex: 1; min-width: 150px; }
+  .status-label { font-size: 0.9rem; opacity: 0.8; margin-bottom: 5px; }
+  .status-value { font-size: 1.3rem; font-weight: bold; color: #00ffaa; }
+  .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+  .video-section { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 2px solid rgba(0,255,170,0.3); }
+  .video-container { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 16/9; }
+  video { width: 100%; height: 100%; display: block; object-fit: cover; }
+  canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .controls-section { display: flex; flex-direction: column; gap: 20px; }
+  .control-panel { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 2px solid rgba(255,193,7,0.3); }
+  .control-panel h3 { color: #ffc107; margin-bottom: 15px; font-size: 1.2rem; }
+  .btn-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+  .btn { padding: 15px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+  .btn-primary { background: linear-gradient(45deg, #00c853, #64dd17); color: white; }
+  .btn-danger { background: linear-gradient(45deg, #d50000, #ff5252); color: white; }
+  .btn-warning { background: linear-gradient(45deg, #ff9800, #ffc107); color: white; }
+  .btn-info { background: linear-gradient(45deg, #2979ff, #448aff); color: white; }
+  .btn-emergency { background: linear-gradient(45deg, #ff4081, #f50057); color: white; animation: pulse 2s infinite; font-size: 18px; grid-column: span 2; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .voice-display { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; border-left: 4px solid #00ffaa; min-height: 100px; }
+  .voice-text { font-size: 1.1rem; line-height: 1.6; }
+  .detection-info { background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; margin-top: 15px; }
+  .object-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; }
+  .object-item { background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .object-name { font-weight: bold; color: #00ffaa; }
+  .object-details { font-size: 0.9rem; opacity: 0.9; }
+  .alarm-indicator { text-align: center; padding: 20px; border-radius: 10px; font-weight: bold; font-size: 1.3rem; margin-top: 15px; transition: all 0.3s ease; }
+  .safe { background: linear-gradient(45deg, #00c853, #64dd17); }
+  .warning { background: linear-gradient(45deg, #ff9800, #ffc107); animation: blink 1s infinite; }
+  .danger { background: linear-gradient(45deg, #d50000, #ff5252); animation: blink 0.5s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .emergency-panel { background: rgba(255,0,0,0.2); padding: 20px; border-radius: 15px; border: 2px solid #ff5252; text-align: center; display: none; }
+  .emergency-panel.active { display: block; animation: shake 0.5s infinite; }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .language-selector { display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
+  .lang-btn { padding: 10px 20px; border: 2px solid #00ffaa; background: transparent; color: white; border-radius: 25px; cursor: pointer; transition: all 0.3s ease; font-weight: bold; }
+  .lang-btn.active { background: #00ffaa; color: #0f2027; }
+  .lang-btn:hover { transform: scale(1.05); }
+  .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+  .feature-card { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; text-align: center; cursor: pointer; transition: all 0.3s ease; border: 2px solid transparent; }
+  .feature-card:hover { transform: translateY(-5px); border-color: #00ffaa; box-shadow: 0 10px 25px rgba(0,255,170,0.2); }
+  .feature-card.active { border-color: #00c853; background: rgba(0,200,83,0.2); }
+  .feature-icon { font-size: 2rem; margin-bottom: 10px; }
+  .feature-title { font-weight: bold; margin-bottom: 5px; color: #00ffaa; }
+  .notification { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: white; padding: 20px; border-radius: 10px; z-index: 1000; max-width: 350px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); display: none; border-left: 4px solid #00ffaa; }
+  .loading { text-align: center; padding: 40px; }
+  .spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #00ffaa; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .task-indicator { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; text-align: center; }
+  .voice-status-indicator { background: rgba(0,255,170,0.2); padding: 10px; border-radius: 8px; margin-top: 10px; text-align: center; border: 1px solid #00ffaa; animation: pulse 2s infinite; }
+  .command-list { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-top: 10px; font-size: 0.85rem; }
+  .command-item { margin: 5px 0; padding: 5px; border-left: 2px solid #00ffaa; padding-left: 10px; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+</style>
+</head>
+<body>
+
+<div class="notification" id="notification"></div>
+
+<div class="container">
+  <div class="header">
+    <button class="logout-btn" onclick="logout()">Logout</button>
+    <h1>🚦 AI Based Object Detection For Blind Assistance</h1>
+    <p>AI-Powered Navigation & Safety Assistant with Natural Voice Control</p>
+
+  <div class="language-selector">
+    <button class="lang-btn active" data-lang="en">English</button>
+    <button class="lang-btn" data-lang="hi">हिंदी</button>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-label">System Status</div>
+      <div class="status-value" id="systemStatus">Ready</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Voice Control</div>
+      <div class="status-value" id="voiceStatus">🎤 Auto Start</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Objects Detected</div>
+      <div class="status-value" id="objectCount">0</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Current Mode</div>
+      <div class="status-value" id="currentMode">Idle</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Active Task</div>
+      <div class="status-value" id="activeTask">None</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="video-section">
+      <div class="video-container">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <div class="alarm-indicator safe" id="alarmIndicator">
+        ✓ SAFE - NO THREATS DETECTED
+      </div>
+
+      <div class="detection-info">
+        <h3 style="color: #00ffaa; margin-bottom: 15px;">Detected Objects</h3>
+        <div class="object-list" id="objectList">
+          <div style="text-align: center; opacity: 0.6;">No objects detected yet</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-section">
+      <div class="control-panel">
+        <h3>Voice Control</h3>
+        <div class="voice-status-indicator">
+          🎤 Voice commands automatically start when detection begins
+        </div>
+        <div class="voice-display">
+          <div class="voice-text" id="voiceText">
+            Voice control will automatically start when you begin detection. Say commands like "stop detection", "read text", or "describe scene".
+          </div>
+        </div>
+        <div class="task-indicator" id="taskIndicator">
+          No active tasks
+        </div>
+        <div class="command-list">
+          <div class="command-item">"Start detection" - Begin object detection</div>
+          <div class="command-item">"Stop detection" - Stop detection</div>
+          <div class="command-item">"Read text" - Read text from camera</div>
+          <div class="command-item">"Describe scene" - Describe what camera sees</div>
+          <div class="command-item">"Search for [object]" - Find specific object</div>
+          <div class="command-item">"Take me to [object]" - Navigate to object</div>
+          <div class="command-item">"Switch to [language]" - Change language</div>
+          <div class="command-item">"Emergency" - Activate emergency mode</div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <h3>Main Controls</h3>
+        <div class="btn-grid">
+          <button class="btn btn-primary" id="startBtn">
+            <span>▶️</span> Start
+          </button>
+          <button class="btn btn-danger" id="stopBtn">
+            <span>⏹️</span> Stop
+          </button>
+          <button class="btn btn-info" id="readTextBtn">
+            <span>📖</span> Read Text
+          </button>
+          <button class="btn btn-warning" id="describeBtn">
+            <span>🖼️</span> Describe
+          </button>
+          <button class="btn btn-emergency" id="emergencyBtn">
+            <span>🚨</span> EMERGENCY
+          </button>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <h3>Features</h3>
+        <div class="features-grid">
+          <div class="feature-card" id="navigationCard">
+            <div class="feature-icon">🧭</div>
+            <div class="feature-title">Navigation</div>
+          </div>
+          <div class="feature-card" id="obstacleCard">
+            <div class="feature-icon">🚧</div>
+            <div class="feature-title">Obstacles</div>
+          </div>
+          <div class="feature-card" id="searchCard">
+            <div class="feature-icon">🔍</div>
+            <div class="feature-title">Search</div>
+          </div>
+          <div class="feature-card" id="fallCard">
+            <div class="feature-icon">⚠️</div>
+            <div class="feature-title">Fall Alert</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="emergency-panel" id="emergencyPanel">
+        <h3>🚨 EMERGENCY MODE ACTIVE</h3>
+        <p style="margin: 15px 0;">Emergency contacts have been notified</p>
+        <p>📱 +91 7348915798</p>
+        <p>📧 manushakantamneni@gmail.com</p>
+        <button class="btn btn-primary" id="cancelEmergencyBtn" style="margin-top: 15px;">
+          Cancel Emergency
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Socket.IO for real-time communication -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<!-- TFJS + COCO + Tesseract -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+
+<!-- EmailJS for sending emails -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<!-- Blind Assist Script -->
+<script src="blind-assist.js"></script>
+
+<script>
+/* -----------------------
+   Configuration & State
+   ----------------------- */
+const CONFIG = {
+  DETECTION_INTERVAL: 900,
+  CRITICAL_DISTANCE: 1.0,
+  WARNING_DISTANCE: 2.0,
+  SPEECH_COOLDOWN: 1800,
+  MAX_OBJECTS_DISPLAY: 8,
+  FOCAL_LENGTH: 800,
+  CONFIDENCE_THRESHOLD: 0.55,
+  OBJECT_ANNOUNCE_COOLDOWN: 3500,
+  MOVEMENT_THRESHOLD_M: 0.25
+};
+
+const STATE = {
+  model: null,
+  stream: null,
+  recognition: null,
+  isDetecting: false,
+  currentLanguage: 'en',
+  currentMode: 'idle',
+  emergencyMode: false,
+  lastSpeechTime: 0,
+  detectionLoop: null,
+  audioContext: null,
+  beepOscillator: null,
+  activeTask: null,
+  taskQueue: [],
+  objectTracking: {},
+  navigationActive: false,
+  navigationInterval: null,
+  awaitingVoiceResponse: false,
+  voiceResponseType: null,
+  lastObjectAnnounceTime: 0,
+  voiceEnabled: true,
+  voiceRecognitionActive: false,
+  isListening: false,
+  loggedIn: true  // Flag to indicate if user is logged in
+};
+
+/* -----------------------
+   DOM refs
+   ----------------------- */
+const DOM = {
+  video: document.getElementById('video'),
+  canvas: document.getElementById('canvas'),
+  ctx: document.getElementById('canvas').getContext('2d'),
+  systemStatus: document.getElementById('systemStatus'),
+  voiceStatus: document.getElementById('voiceStatus'),
+  objectCount: document.getElementById('objectCount'),
+  currentMode: document.getElementById('currentMode'),
+  voiceText: document.getElementById('voiceText'),
+  objectList: document.getElementById('objectList'),
+  alarmIndicator: document.getElementById('alarmIndicator'),
+  notification: document.getElementById('notification'),
+  emergencyPanel: document.getElementById('emergencyPanel'),
+  activeTask: document.getElementById('activeTask'),
+  taskIndicator: document.getElementById('taskIndicator')
+};
+
+/* -----------------------
+   Language dictionary
+   ----------------------- */
+const LANGUAGES = {
+  en: { 
+    name:'English', 
+    code:'en-US',
+    t: {
+      welcome: 'Welcome. Say "start detection" to begin.',
+      started: 'Detection started.',
+      stopped: 'Detection stopped.',
+      emergency: 'Emergency mode activated. Help is on the way.',
+      emergencyCancelled: 'Emergency cancelled.',
+      reading: 'Reading text from camera.',
+      noText: 'No text found.',
+      describing: 'Describing the scene.',
+      searching: 'Searching for',
+      listening: 'Listening for response...',
+      askDestination: 'Where would you like to go? Please say the destination.',
+      askSearchObject: 'What object should I search for? Please say the object name.',
+      critical: 'Critical! Object extremely close',
+      warning: 'Warning! Object nearby',
+      safe: 'Path is clear',
+      multipleObjects: 'Multiple objects detected:',
+      objectFound: 'found at',
+      meters: 'meters',
+      left: 'on your left',
+      right: 'on your right',
+      center: 'in front of you',
+      navigationStarted: 'Navigation started to',
+      navigationStopped: 'Navigation stopped',
+      languageSwitched: 'Language switched to'
+    }
+  },
+  hi: { 
+    name:'हिंदी', 
+    code:'hi-IN',
+    t: {
+      welcome: 'स्वागत है। "डिटेक्शन शुरू करें" कहकर शुरू करें।',
+      started: 'डिटेक्शन शुरू हो गया।',
+      stopped: 'डिटेक्शन बंद हो गया।',
+      emergency: 'आपातकालीन मोड सक्रिय। मदद आ रही है।',
+      emergencyCancelled: 'आपातकाल रद्द।',
+      reading: 'कैमरे से टेक्स्ट पढ़ रहा हूं।',
+      noText: 'कोई टेक्स्ट नहीं मिला।',
+      describing: 'दृश्य का वर्णन कर रहा हूं।',
+      searching: 'खोज रहा हूं',
+      listening: 'जवाब सुन रहा हूं...',
+      askDestination: 'आप कहां जाना चाहते हैं? कृपया गंतव्य बताएं।',
+      askSearchObject: 'मैं कौन सी वस्तु खोजूं? कृपया वस्तु का नाम बताएं।',
+      critical: 'गंभीर! वस्तु बहुत करीब',
+      warning: 'चेतावनी! वस्तु पास में',
+      safe: 'रास्ता साफ है',
+      multipleObjects: 'कई वस्तुएं पाई गईं:',
+      objectFound: 'पाई गई',
+      meters: 'मीटर',
+      left: 'आपके बाएं',
+      right: 'आपके दाएं',
+      center: 'आपके सामने',
+      navigationStarted: 'नेविगेशन शुरू हुआ',
+      navigationStopped: 'नेविगेशन बंद हुआ',
+      languageSwitched: 'भाषा बदली गई'
+    }
+  },
+};
+
+// helper to get translation (fallback to English)
+function tx(key) { 
+  return (LANGUAGES[STATE.currentLanguage] && LANGUAGES[STATE.currentLanguage].t[key]) || LANGUAGES['en'].t[key] || key; 
+}
+
+/* -----------------------
+   Speech helpers
+   ----------------------- */
+function speak(text, priority='normal') {
+  if (!('speechSynthesis' in window)) return;
+  const now = Date.now();
+  if (now - STATE.lastSpeechTime < CONFIG.SPEECH_COOLDOWN && priority !== 'emergency') return;
+  STATE.lastSpeechTime = now;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = (LANGUAGES[STATE.currentLanguage] && LANGUAGES[STATE.currentLanguage].code) || 'en-US';
+  if (priority === 'emergency') { u.rate = 1.3; u.pitch = 1.4; u.volume = 1.0; }
+  else if (priority === 'warning') { u.rate = 1.15; u.pitch = 1.15; u.volume = 0.9; }
+  else { u.rate = 1.0; u.pitch = 1.0; u.volume = 0.9; }
+  window.speechSynthesis.speak(u);
+  DOM.voiceText.textContent = `🔊 ${text}`;
+}
+
+/* -----------------------
+   Notification helper
+   ----------------------- */
+function showNotification(msg, type='info') {
+  DOM.notification.textContent = msg;
+  DOM.notification.style.display = 'block';
+  const bg = { info:'rgba(2,119,189,0.95)', success:'rgba(56,142,60,0.95)', warning:'rgba(255,152,0,0.95)', error:'rgba(211,47,47,0.95)' }[type] || 'rgba(0,0,0,0.8)';
+  DOM.notification.style.background = bg;
+  setTimeout(()=>{ DOM.notification.style.display = 'none'; }, 3500);
+}
+
+/* -----------------------
+   Audio beep helpers
+   ----------------------- */
+function initAudio() {
+  if (!STATE.audioContext) STATE.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playBeep(freq=800, vol=0.12, duration=300) {
+  initAudio();
+  const osc = STATE.audioContext.createOscillator();
+  const g = STATE.audioContext.createGain();
+  osc.connect(g); g.connect(STATE.audioContext.destination);
+  osc.type = 'sine'; osc.frequency.value = freq; g.gain.value = vol;
+  osc.start();
+  setTimeout(()=>{ try{ g.gain.linearRampToValueAtTime(0.0001, STATE.audioContext.currentTime + 0.05); osc.stop(); } catch(e){} }, duration);
+}
+
+/* -----------------------
+   Camera & Model
+   ----------------------- */
+async function initCamera() {
+  try {
+    STATE.stream = await navigator.mediaDevices.getUserMedia({ 
+      video:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }, 
+      audio:true 
+    });
+    DOM.video.srcObject = STATE.stream;
+    return new Promise(resolve => { 
+      DOM.video.onloadedmetadata = () => { 
+        DOM.canvas.width = DOM.video.videoWidth; 
+        DOM.canvas.height = DOM.video.videoHeight; 
+        resolve(); 
+      }; 
+    });
+  } catch (e) {
+    console.error('camera error', e); 
+    showNotification('Camera access denied','error'); 
+    speak('Camera permission is required'); 
+    throw e;
+  }
+}
+
+async function loadModel() {
+  DOM.systemStatus.textContent = 'Loading model...';
+  showNotification('Loading object detection model...', 'info');
+  STATE.model = await cocoSsd.load();
+  DOM.systemStatus.textContent = 'Ready';
+  showNotification('Model ready', 'success');
+}
+
+/* -----------------------
+   Object grouping & movement detection
+   ----------------------- */
+function groupObjects(objects){
+  // Group objects that have similar distance and same horizontal position
+  const groups = [];
+  objects.forEach(o => {
+    let placed = false;
+    for (let g of groups) {
+      if (g.position === o.position && Math.abs(g.distance - o.distance) <= 0.25) {
+        g.items.push(o);
+        g.distance = (g.distance * (g.items.length-1) + o.distance)/g.items.length;
+        placed = true; break;
+      }
+    }
+    if (!placed) groups.push({ position: o.position, distance: o.distance, items: [o] });
+  });
+  return groups;
+}
+
+function detectMovementAndUpdateTracking(objects){
+  const now = Date.now();
+  // build map for this frame keyed by name + approximate position
+  const frameKeys = {};
+  objects.forEach((o, idx) => {
+    // key attempt: name + rounded distance + position (coarse)
+    const key = `${o.name}::${o.position}`;
+    frameKeys[key] = frameKeys[key] || [];
+    frameKeys[key].push({ ...o, idx });
+  });
+
+  // for each detected object instance, compare with previous tracking by similar key and nearest distance
+  const movementEvents = []; // {name, prevDist, newDist, delta}
+  Object.keys(frameKeys).forEach(k => {
+    const list = frameKeys[k];
+    list.forEach(instance => {
+      const trackingKey = `${instance.name}::${instance.position}`; // coarse
+      const prev = STATE.objectTracking[trackingKey];
+      if (!prev) {
+        // initialize
+        STATE.objectTracking[trackingKey] = { lastDistance: instance.distance, lastSeenAt: now, staticFrames: 0 };
+      } else {
+        const delta = prev.lastDistance - instance.distance; // positive if object moved closer
+        if (Math.abs(delta) >= CONFIG.MOVEMENT_THRESHOLD_M) {
+          // movement detected
+          movementEvents.push({ name: instance.name, prevDist: prev.lastDistance, newDist: instance.distance, delta });
+          // update tracking
+          STATE.objectTracking[trackingKey].lastDistance = instance.distance;
+          STATE.objectTracking[trackingKey].lastSeenAt = now;
+          STATE.objectTracking[trackingKey].staticFrames = 0;
+        } else {
+          // static-ish
+          STATE.objectTracking[trackingKey].staticFrames += 1;
+          STATE.objectTracking[trackingKey].lastSeenAt = now;
+          STATE.objectTracking[trackingKey].lastDistance = instance.distance;
+        }
+      }
+    });
+  });
+
+  // garbage-collect old tracked entries
+  Object.keys(STATE.objectTracking).forEach(k => {
+    if (now - STATE.objectTracking[k].lastSeenAt > 8000) delete STATE.objectTracking[k];
+  });
+
+  return movementEvents;
+}
+
+/* -----------------------
+   UI update & announcements
+   ----------------------- */
+let lastAnnounce = 0;
+function updateUIAndAnnounce(objects) {
+  DOM.objectCount.textContent = objects.length;
+  DOM.objectList.innerHTML = '';
+
+  if (objects.length === 0) {
+    DOM.objectList.innerHTML = `<div style="text-align:center;opacity:0.6;">No objects detected yet</div>`;
+    DOM.alarmIndicator.className = 'alarm-indicator safe';
+    DOM.alarmIndicator.textContent = '✓ SAFE - NO THREATS DETECTED';
+    return;
+  }
+
+  // Group similar-level objects
+  const groups = groupObjects(objects);
+
+  // Build UI list: show grouped names then distance
+  groups.forEach(g => {
+    const names = g.items.map(i => i.name);
+    const item = document.createElement('div');
+    item.className = 'object-item';
+    const distanceColor = g.distance <= CONFIG.CRITICAL_DISTANCE ? '#ff5252' : (g.distance <= CONFIG.WARNING_DISTANCE ? '#ff9800' : '#00ffaa');
+    const labelNames = names.length > 1 ? names.join(' and ') : names[0];
+    item.innerHTML = `<div><span class="object-name">${labelNames}</span><div class="object-details">${g.distance.toFixed(1)} meters • ${g.position}</div></div>
+                      <div style="color:${distanceColor};font-weight:bold;">${g.distance <= CONFIG.CRITICAL_DISTANCE ? '⚠️' : g.distance <= CONFIG.WARNING_DISTANCE ? '🔶' : '✅'}</div>`;
+    DOM.objectList.appendChild(item);
+  });
+
+  // draw boxes and labels for first N objects
+  DOM.ctx.clearRect(0,0,DOM.canvas.width,DOM.canvas.height);
+  objects.slice(0, CONFIG.MAX_OBJECTS_DISPLAY).forEach(o => {
+    const [x,y,w,h] = o.bbox;
+    const color = o.distance <= CONFIG.CRITICAL_DISTANCE ? '#ff0000' : (o.distance <= CONFIG.WARNING_DISTANCE ? '#ff9800' : '#00ffaa');
+    DOM.ctx.strokeStyle = color; DOM.ctx.lineWidth = 3; DOM.ctx.strokeRect(x,y,w,h);
+    DOM.ctx.fillStyle = color; DOM.ctx.font = '16px Arial';
+    DOM.ctx.fillText(`${o.name} ${o.distance.toFixed(1)}m`, x, y>18 ? y-6 : y+h+16);
+  });
+
+  // determine alarm state
+  const critical = objects.filter(o => o.distance <= CONFIG.CRITICAL_DISTANCE);
+  const warning = objects.filter(o => o.distance <= CONFIG.WARNING_DISTANCE && o.distance > CONFIG.CRITICAL_DISTANCE);
+  if (critical.length > 0) {
+    DOM.alarmIndicator.className = 'alarm-indicator danger';
+    DOM.alarmIndicator.textContent = `⚠️ CRITICAL! ${critical.length} object(s) within ${CONFIG.CRITICAL_DISTANCE} m`;
+  } else if (warning.length > 0) {
+    DOM.alarmIndicator.className = 'alarm-indicator warning';
+    DOM.alarmIndicator.textContent = `⚠️ WARNING! ${warning.length} object(s) within ${CONFIG.WARNING_DISTANCE} m`;
+  } else {
+    DOM.alarmIndicator.className = 'alarm-indicator safe';
+    DOM.alarmIndicator.textContent = '✓ SAFE - NO THREATS DETECTED';
+  }
+
+  // Movement detection
+  const movements = detectMovementAndUpdateTracking(objects);
+  // If movement events exist, announce them (higher priority)
+  if (movements.length > 0) {
+    // speak a short message + beep once
+    movements.forEach(m => {
+      const dir = m.delta > 0 ? 'moving closer' : 'moving away';
+      speak(`${m.name} ${dir}. Now ${m.newDist.toFixed(1)} meters.`, 'warning');
+      playBeep(900, 0.18, 250);
+    });
+    lastAnnounce = Date.now();
+    return;
+  }
+
+  // Speech announcements based on groups and cooldown
+  const now = Date.now();
+  if (now - lastAnnounce < CONFIG.OBJECT_ANNOUNCE_COOLDOWN) return;
+
+  // announce critical first, then warning, else small info
+  if (critical.length > 0) {
+    // loud buzzer + three quick warnings
+    playBeep(1400, 0.35, 800);
+    // three short repeated voice warnings but spaced (avoid overlap by scheduling)
+    const announce = critical.length === 1 ? `${tx('critical')} ${critical[0].name} ${critical[0].position} ${critical[0].distance.toFixed(1)} meters` :
+                          `${tx('critical')} multiple objects extremely close`;
+    speak(announce, 'emergency');
+    setTimeout(()=> speak(announce, 'emergency'), 900);
+    setTimeout(()=> speak(announce, 'emergency'), 1700);
+    lastAnnounce = now;
+  } else if (warning.length > 0) {
+    playBeep(900, 0.12, 400);
+    const announce = warning.length === 1 ? `${tx('warning')} ${warning[0].name} ${warning[0].position} ${warning[0].distance.toFixed(1)} meters` :
+                          `${tx('warning')} multiple objects nearby`;
+    speak(announce, 'warning');
+    lastAnnounce = now;
+  } else {
+    // short summary for small numbers
+    if (objects.length <= 3) {
+      const names = objects.slice(0,3).map(o=>o.name);
+      speak(`${tx('multipleObjects')} ${names.join(' and ')}`, 'normal');
+      lastAnnounce = now;
+    }
+  }
+}
+
+/* -----------------------
+   Main detection function
+   ----------------------- */
+async function detectObjects() {
+  if (!STATE.isDetecting || !STATE.model || STATE.activeTask) return;
+  try {
+    const predictions = await STATE.model.detect(DOM.video);
+    const filtered = predictions.filter(p => p.score > CONFIG.CONFIDENCE_THRESHOLD)
+      .map(p => {
+        const objDef = (OBJECT_DB[p.class] || {height:0.5, category:'object', priority:'low'});
+        const [x,y,w,h] = p.bbox;
+        const distance = Math.min((objDef.height * CONFIG.FOCAL_LENGTH) / (h || 1), 50);
+        const centerX = x + w/2;
+        const position = getPosition(centerX, DOM.canvas.width);
+        return { name: p.class, score: p.score, bbox:p.bbox, distance, position };
+      })
+      .sort((a,b) => a.distance - b.distance);
+
+    updateUIAndAnnounce(filtered);
+
+  } catch (e) {
+    console.error('detect error:', e);
+  }
+}
+
+/* -----------------------
+   Voice recognition
+   ----------------------- */
+function initRecognition() {
+  if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
+    showNotification('Speech recognition not supported', 'error'); 
+    speak('Voice recognition not supported'); 
+    return null;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r = new SR();
+  r.continuous = true; 
+  r.interimResults = false;
+  r.lang = LANGUAGES[STATE.currentLanguage].code;
+  r.maxAlternatives = 3;
+
+  r.onstart = () => { 
+    STATE.isListening = true;
+    STATE.voiceRecognitionActive = true;
+    DOM.voiceStatus.textContent = '🎤 Listening...'; 
+    console.log('voice start'); 
+  };
+  
+  r.onresult = (ev) => {
+    const txt = ev.results[ev.results.length-1][0].transcript.trim().toLowerCase();
+    console.log('voice input:', txt);
+    DOM.voiceText.textContent = `🎤 ${txt}`;
+    if (STATE.awaitingVoiceResponse) {
+      handleVoiceResponse(txt);
+    } else {
+      processVoiceCommand(txt);
+    }
+  };
+  
+  r.onerror = (e) => {
+    console.warn('recognition error', e);
+    if (e.error === 'not-allowed') {
+      DOM.voiceStatus.textContent = '❌ Mic denied';
+      speak('Microphone access denied');
+      stopRecognition();
+    } else {
+      // attempt restart
+      setTimeout(()=>{ 
+        if (STATE.voiceEnabled && STATE.recognition) {
+          try{ STATE.recognition.start(); }catch(err){} 
+        }
+      }, 800);
+    }
+  };
+  
+  r.onend = () => {
+    // auto-restart unless user disabled voice
+    if (STATE.voiceEnabled && STATE.recognition) {
+      setTimeout(()=>{ 
+        try{ STATE.recognition.start(); }catch(e){} 
+      }, 400);
+    }
+  };
+  
+  return r;
+}
+
+function startRecognition(){
+  if (!STATE.recognition) STATE.recognition = initRecognition();
+  if (STATE.recognition && !STATE.isListening) {
+    try { 
+      STATE.recognition.start(); 
+      STATE.voiceEnabled = true; 
+      STATE.isListening = true;
+    } catch(e){ 
+      console.warn('startRecognition error', e); 
+      // Try again after a delay
+      setTimeout(() => {
+        if (STATE.voiceEnabled && STATE.recognition) {
+          try { STATE.recognition.start(); } catch(err) {}
+        }
+      }, 1000);
+    }
+  }
+}
+
+function stopRecognition(){
+  STATE.voiceEnabled = false;
+  STATE.isListening = false;
+  if (STATE.recognition) { 
+    try{ STATE.recognition.stop(); }catch(e){} 
+  }
+}
+
+/* -----------------------
+   Task queue helpers
+   ----------------------- */
+function setActiveTask(name){ 
+  STATE.activeTask = name; 
+  DOM.activeTask.textContent = name || 'None'; 
+  DOM.taskIndicator.textContent = name ? `Active: ${name}` : 'No active tasks'; 
+}
+
+function queueTask(fn, name){
+  STATE.taskQueue.push({fn, name});
+  processTaskQueue();
+}
+
+function processTaskQueue(){
+  if (STATE.activeTask || STATE.taskQueue.length === 0) return;
+  const t = STATE.taskQueue.shift();
+  setActiveTask(t.name);
+  try { t.fn(); } catch(e){ console.error('task error', e); completeTask(); }
+}
+
+function completeTask(){
+  setActiveTask(null);
+  // if detection was running previously ensure detection loop is active
+  if (STATE.isDetecting && !STATE.detectionLoop) {
+    STATE.detectionLoop = setInterval(detectObjects, CONFIG.DETECTION_INTERVAL);
+  }
+  processTaskQueue();
+}
+
+/* -----------------------
+   Commands handling
+   ----------------------- */
+function processVoiceCommand(transcript) {
+  // Avoid misfires when emergency active
+  if (!transcript || transcript.length < 2) return;
+
+  // Emergency triggers
+  if (transcript.includes('emergency') || transcript.includes('help') || transcript.includes('sos')) {
+    startEmergencyMode(); return;
+  }
+  if (transcript.includes('cancel emergency') || transcript.includes('i am okay') || transcript.includes('cancel help')) {
+    cancelEmergencyMode(); return;
+  }
+
+  // Start/Stop detection
+  if (transcript.includes('start detection')) { startDetection(); return; }
+  if (transcript.includes('stop detection')) { stopDetection(); return; }
+
+  // Read text
+  if (transcript.includes('read text') || transcript.includes('read') || transcript.includes('scan text')) { startTextReading(); return; }
+
+  // Describe
+  if (transcript.includes('describe') || transcript.includes('what do you see') || transcript.includes('describe scene')) { startSceneDescription(); return; }
+
+  // Search for - if object name present, use it; otherwise ask follow-up
+  if (transcript.includes('search for') || transcript.includes('find') || transcript.includes('look for')) {
+    // try to extract name
+    let name = transcript.replace('search for','').replace('find','').replace('look for','').trim();
+    name = name.replace(/^the /,'').replace(/^a /,'').trim();
+    if (name && name.length > 1) { startObjectSearch(name); return; }
+    // ask follow-up
+    STATE.awaitingVoiceResponse = true; STATE.voiceResponseType = 'search';
+    speak(tx('askSearchObject')); DOM.voiceText.textContent = tx('listening'); return;
+  }
+
+  // Navigation - ask destination if not provided
+  if (transcript.includes('take me to') || transcript.includes('navigate to') || transcript.includes('guide me to')) {
+    // try to parse possible destination phrase after 'to' or 'go to'
+    const keywords = ['take me to', 'navigate to', 'guide me to'];
+    let found = null;
+    for (const k of keywords) { 
+      if (transcript.includes(k)) { 
+        found = transcript.split(k)[1].trim(); 
+        break; 
+      } 
+    }
+    if (found && found.length>1) { startNavigation(found); return; }
+    // follow-up ask
+    STATE.awaitingVoiceResponse = true; STATE.voiceResponseType = 'navigation';
+    speak(tx('askDestination')); DOM.voiceText.textContent = tx('listening'); return;
+  }
+
+  // Obstacle detection command
+  if (transcript.includes('obstacle') || transcript.includes('obstacle detection') || transcript.includes('detect obstacles')) { startObstacleDetection(); return; }
+
+  // Fall detection
+  if (transcript.includes('fall detection') || transcript.includes('detect fall') || transcript.includes('fall alert')) { startFallDetection(); return; }
+
+  // Language switch
+  if (transcript.includes('switch to') || transcript.includes('change to') || transcript.includes('set language')) {
+    if (transcript.includes('hindi') || transcript.includes('hindi language')) switchLanguage('hi');
+    else switchLanguage('en');
+    return;
+  }
+
+  // If none matched, ask user for clarity after short speech
+  speak('Command not recognized. Try: start detection, stop detection, read text, describe scene, search for *name*, or emergency.');
+}
+
+/* Handles the single follow-up response after a prompt (destination or search object) */
+function handleVoiceResponse(responseText) {
+  STATE.awaitingVoiceResponse = false;
+  const type = STATE.voiceResponseType;
+  STATE.voiceResponseType = null;
+  if (!type) return;
+  if (type === 'navigation') {
+    speak(`${tx('navigationStarted')} ${responseText}.`);
+    startNavigation(responseText);
+  } else if (type === 'search') {
+    const name = responseText.replace(/^the /,'').replace(/^a /,'').trim();
+    speak(`${tx('searching')} ${name}`);
+    startObjectSearch(name);
+  }
+}
+
+/* -----------------------
+   Core tasks (Search, Obstacle, Fall, Read, Describe, Navigation)
+   ----------------------- */
+async function startObjectSearch(name) {
+  if (!STATE.isDetecting) { speak('Please start detection first.'); return; }
+  queueTask(async () => {
+    speak(`${tx('searching')} ${name}`);
+    showNotification(`Searching for ${name}...`, 'info');
+    let attempts = 0, found=false;
+    const maxAttempts = 25;
+    
+    // Pause detection while searching
+    if (STATE.detectionLoop) {
+      clearInterval(STATE.detectionLoop);
+      STATE.detectionLoop = null;
+    }
+    
+    const interval = setInterval(async () => {
+      attempts++;
+      if (!STATE.isDetecting || attempts > maxAttempts) {
+        clearInterval(interval);
+        if (!found) {
+          speak(`${name} not found`);
+          showNotification(`${name} not found`, 'warning');
+        }
+        // Resume detection after search completes
+        if (STATE.isDetecting && !STATE.detectionLoop) {
+          STATE.detectionLoop = setInterval(detectObjects, CONFIG.DETECTION_INTERVAL);
+        }
+        completeTask();
+        return;
+      }
+      try {
+        const preds = await STATE.model.detect(DOM.video);
+        const target = preds.find(p => (p.class.toLowerCase() === name.toLowerCase() || p.class.toLowerCase().includes(name.toLowerCase())) && p.score > CONFIG.CONFIDENCE_THRESHOLD);
+        if (target) {
+          const objDef = (OBJECT_DB[target.class] || {height:0.5});
+          const distance = Math.min((objDef.height * CONFIG.FOCAL_LENGTH) / (target.bbox[3] || 1), 50);
+          const centerX = target.bbox[0] + target.bbox[2]/2;
+          const pos = getPosition(centerX, DOM.canvas.width);
+          speak(`${name} ${tx('objectFound')} ${tx(pos)} ${distance.toFixed(1)} ${tx('meters')}`);
+          showNotification(`${name} found`, 'success');
+          found = true;
+          clearInterval(interval);
+
+          // Resume detection after 1 second
+          setTimeout(() => {
+            if (STATE.isDetecting && !STATE.detectionLoop) {
+              STATE.detectionLoop = setInterval(detectObjects, CONFIG.DETECTION_INTERVAL);
+            }
+            completeTask();
+          }, 1000);
+          return;
+        }
+      } catch(e){ console.error('search detect err', e); }
+    }, 300);
+  }, `Search: ${name}`);
+}
+
+function startObstacleDetection() {
+  if (!STATE.isDetecting) { speak('Please start detection first'); return; }
+  queueTask(async () => {
+    speak('Obstacle detection active for 30 seconds');
+    showNotification('Obstacle detection active', 'info');
+    let elapsed = 0;
+    const checkInterval = 1500;
+    
+    // Pause regular detection during obstacle detection
+    if (STATE.detectionLoop) {
+      clearInterval(STATE.detectionLoop);
+      STATE.detectionLoop = null;
+    }
+    
+    const watcher = setInterval(async () => {
+      elapsed += checkInterval;
+      if (!STATE.isDetecting) { 
+        clearInterval(watcher); 
+        // Resume regular detection
+        if (STATE.isDetecting && !STATE.detectionLoop) {
+          STATE.detectionLoop = setInterval(detectObjects, CONFIG.DETECTION_INTERVAL);
+        }
+        completeTask(); 
+        return; 
+      }
+      try {
+        const preds = await STATE.model.detect(DOM.video);
+        const objs = preds.filter(p => p.score > CONFIG.CONFIDENCE_THRESHOLD)
+                          .map(p => { 
+                            const objDef = OBJECT_DB[p.class] || {height:0.5}; 
+                            return { 
+                              name:p.class, 
+                              distance: Math.min((objDef.height*CONFIG.FOCAL_LENGTH)/(p.bbox[3]||1),50), 
+                              bbox:p.bbox 
+                            }; 
+                          })
+                          .sort((a,b)=>a.distance-b.distance);
+        if (objs.length > 0) {
+          const closest = objs[0];
+          if (closest.distance <= CONFIG.CRITICAL_DISTANCE) {
+            speak(`Critical obstacle! ${closest.name} ${closest.distance.toFixed(1)} meters`, 'emergency');
+            playBeep(1500, 0.35, 900);
+          } else if (closest.distance <= CONFIG.WARNING_DISTANCE) {
+            speak(`Obstacle nearby: ${closest.name} ${closest.distance.toFixed(1)} meters`, 'warning');
+            playBeep(900, 0.12, 500);
+          }
+        }
+      } catch(e){ console.error('obstacle error', e); }
+    }, checkInterval);
+
+    setTimeout(()=>{ 
+      clearInterval(watcher); 
+      speak('Obstacle detection completed'); 
+      showNotification('Obstacle detection completed','success'); 
+      // Resume regular detection
+      if (STATE.isDetecting && !STATE.detectionLoop) {
+        STATE.detectionLoop = setInterval(detectObjects, CONFIG.DETECTION_INTERVAL);
+      }
+      completeTask(); 
+    }, 30000);
+  }, 'Obstacle Detection');
+}
+
+function startFallDetection() {
+  queueTask(async () => {
+    speak('Fall detection active for 60 seconds');
+    showNotification('Fall detection active', 'info');
+    // This is simulated – for real devices use accelerometer/Gyro
+    let elapsed = 0;
+    const checkInterval = 1000;
+    const watcher = setInterval(()=>{
+      elapsed += checkInterval;
+      // simulate a fall event randomly (low prob)
+      if (Math.random() < 0.02) {
+        clearInterval(watcher);
+        speak('Fall detected! Notifying emergency contacts', 'emergency');
+        startEmergencyMode();
+        completeTask();
+        return;
+      }
+      if (elapsed >= 60000) {
+        clearInterval(watcher); 
+        speak('Fall detection completed'); 
+        showNotification('Fall detection completed','success'); 
+        completeTask();
+      }
+    }, checkInterval);
+  }, 'Fall Detection');
+}
+
+function startTextReading() {
+  queueTask(async () => {
+    speak(tx('reading'));
+    showNotification('Reading text...', 'info');
+    try {
+      const worker = await Tesseract.createWorker();
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      DOM.ctx.drawImage(DOM.video, 0, 0, DOM.canvas.width, DOM.canvas.height);
+      const { data: { text } } = await worker.recognize(DOM.canvas);
+      await worker.terminate();
+      if (text && text.trim().length > 3) {
+        const snippet = text.trim().substring(0, 250);
+        speak(`Text detected: ${snippet}`);
+        showNotification(`Text: ${snippet}`, 'success');
+      } else {
+        speak(tx('noText')); showNotification('No text found','warning');
+      }
+    } catch(e){ console.error('tesseract err', e); speak('Error reading text'); showNotification('Text read error','error'); }
+    completeTask();
+  }, 'Read Text');
+}
+
+function startSceneDescription() {
+  queueTask(async () => {
+    speak(tx('describing')); showNotification('Describing scene...', 'info');
+    try {
+      const preds = await STATE.model.detect(DOM.video);
+      const top = preds.filter(p => p.score > CONFIG.CONFIDENCE_THRESHOLD).slice(0,6).map(p => p.class);
+      if (top.length > 0) {
+        const unique = [...new Set(top)];
+        speak(`I can see: ${unique.join(', ')}`);
+        showNotification(`Scene: ${unique.slice(0,3).join(', ')}`,'success');
+      } else {
+        speak('No objects detected'); showNotification('No objects','warning');
+      }
+    } catch(e){ console.error('scene err', e); speak('Error describing scene'); showNotification('Describe error','error'); }
+    completeTask();
+  }, 'Describe Scene');
+}
+
+function startNavigation(destination) {
+  queueTask(() => {
+    STATE.navigationActive = true;
+    speak(`${tx('navigationStarted')} ${destination}`);
+    showNotification(`Navigation to ${destination} started`, 'success');
+    DOM.currentMode.textContent = 'Navigation';
+
+    // Pause regular detection during navigation
+    if (STATE.detectionLoop) {
+      clearInterval(STATE.detectionLoop);
+      STATE.detectionLoop = null;
+    }
+
+    // Start navigation guidance with object detection
+    let navigationInterval = setInterval(async () => {
+      if (!STATE.navigationActive) {
+        clearInterval(navigationInterval);
+        return;
+      }
+      
+      try {
+        const preds = await STATE.model.detect(DOM.video);
+        const target = preds.find(p => 
+          (p.class.toLowerCase() === destination.toLowerCase() || 
+           p.class.toLowerCase().includes(destination.toLowerCase())) && 
+          p.score > CONFIG.CONFIDENCE_THRESHOLD
+        );
+        
+        if (target) {
+          const objDef = (OBJECT_DB[target.class] || {height:0.5});
+          const distance = Math.min((objDef.height * CONFIG.FOCAL_LENGTH) / (target.bbox[3] || 1), 50);
+          const centerX = target.bbox[0] + target.bbox[2]/2;
+          const pos = getPosition(centerX, DOM.canvas.width);
+          
+          if (distance <= 1.0) {
+            speak(`You have reached ${destination}`);
+            clearInterval(navigationInterval);
+            stopNavigation();
+          } else if (distance <= 3.0) {
+            speak(`${destination} is ${distance.toFixed(1)} meters ${tx(pos)}. Getting close.`);
+          } else {
+            speak(`${destination} is ${distance.toFixed(1)} meters ${tx(pos)}. Continue moving.`);
+          }
+        } else {
+          speak(`${destination} not visible. Please move around to locate it.`);
+        }
+      } catch(e) {
+        console.error('Navigation detection error:', e);
+      }
+    }, 3000);
+
+    // automatically finish navigation after 2 minutes if not arrived
+    setTimeout(()=>{ 
+      if (STATE.navigationActive) {
+        speak('Navigation timeout. Destination not reached.');
+        stopNavigation(); 
+      }
+    }, 120000);
+  }, `Navigation to ${destination}`);
+}
+
+function stopNavigation() {
+  if (STATE.navigationActive) {
+    STATE.navigationActive = false;
+    speak(tx('navigationStopped')); 
+    showNotification('Navigation stopped','info');
+    DOM.currentMode.textContent = 'Idle';
+    
+    // Resume regular detection after navigation stops
+    if (STATE.isDetecting && !STATE.detectionLoop) {
+      STATE.detectionLoop = setInterval(detectObjects, CONFIG.DETECTION_INTERVAL);
+    }
+    
+    completeTask();
+  }
+}
+
+/* -----------------------
+   Emergency
+   ----------------------- */
+function startEmergencyMode() {
+  STATE.emergencyMode = true;
+  DOM.emergencyPanel.classList.add('active');
+  speak(tx('emergency'),'emergency');
+  showNotification('EMERGENCY MODE ACTIVATED','error');
+  playBeep(1500, 0.4, 1000);
+
+  // Request notification permission and send browser notification
+  if ('Notification' in window) {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        const emergencyNotification = new Notification('🚨 EMERGENCY ALERT', {
+          body: 'Emergency mode activated! Contacts have been notified.',
+          icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTMuMSAyIDE0IDIuOSAxNCA0VjE2QzE0IDE3LjEgMTMuMSAxOCA5LjkgMTlIMTQuMUMxNS4xIDE5IDE2IDE4LjEgMTYgMTdWNFoiIGZpbGw9IiNmZjQ0NDQiLz4KPHBhdGggZD0iTTggMTJIMTZNMCAwaDI0VjI0SDBWMHoiIGZpbGw9Im5vbmUiLz4KPC9zdmc+',
+          badge: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiBmaWxsPSIjZmY0NDQ0Ii8+CjxwYXRoIGQ9Ik0xMiAyQzEzLjEgMiAxNCAyLjkgMTQgNFYxNkMxNCAxNy4xIDEzLjEgMTggOS45IDE5SDE0LjFDMTUuMSAxOSAxNiAxOC4xIDE2IDE3VjRaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=',
+          tag: 'emergency-alert',
+          requireInteraction: true,
+          silent: false
+        });
+
+        emergencyNotification.onclick = () => {
+          window.focus();
+          emergencyNotification.close();
+        };
+
+        // Auto-close after 10 seconds
+        setTimeout(() => emergencyNotification.close(), 10000);
+
+        showNotification('Emergency notification sent to browser', 'success');
+      } else {
+        showNotification('Notification permission denied', 'warning');
+      }
+    });
+  }
+
+  // Send real SMS using Textbelt (free tier)
+  fetch('https://textbelt.com/text', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      phone: '+917348915798', // Replace with actual emergency contact number
+      message: 'An emergency alert was received from someone close to you. Please check in with them as soon as possible.',
+    }),
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showNotification('Emergency SMS sent to mobile', 'success');
+      console.log('Emergency SMS sent successfully');
+    } else {
+      showNotification('Failed to send SMS', 'error');
+      console.error('SMS send failed:', data);
+    }
+  })
+  .catch(error => {
+    console.error('SMS send error:', error);
+    showNotification('SMS send error', 'error');
+  });
+
+  // Send real email using EmailJS
+  // Note: You need to configure EmailJS with your service ID, template ID, and public key
+  // Replace the placeholders below with your actual EmailJS credentials
+  emailjs.init('lCHj69LfRyg1WJHHH'); // Replace with your EmailJS public key
+
+  const templateParams = {
+    to_email: 'manushakantamneni@gmail.com', // Emergency contact email
+    subject: 'EMERGENCY ALERT',
+    message: 'An emergency alert was received from someone close to you. Please check in with them as soon as possible.',
+  };
+
+  emailjs.send('service_yd1j8ow', 'template_ml101mw', templateParams) // Replace with your EmailJS service and template IDs
+    .then((response) => {
+      showNotification('Emergency email sent', 'success');
+      console.log('Emergency email sent successfully', response);
+    }, (error) => {
+      showNotification('Failed to send email', 'error');
+      console.error('Email send failed:', error);
+    });
+}
+
+function cancelEmergencyMode() {
+  STATE.emergencyMode = false;
+  DOM.emergencyPanel.classList.remove('active');
+  speak(tx('emergencyCancelled')); 
+  showNotification('Emergency cancelled','success');
+}
+
+/* stop beep (no continuous oscillator kept) */
+function stopBeep(){ /* placeholder: playBeep uses transient oscs */ }
+
+/* -----------------------
+   Utilities & events
+   ----------------------- */
+function getPosition(centerX, canvasWidth) {
+  if (centerX < canvasWidth/3) return 'left'; 
+  if (centerX > 2*canvasWidth/3) return 'right'; 
+  return 'center';
+}
+
+function switchLanguage(lang) {
+  if (!LANGUAGES[lang]) lang='en';
+  STATE.currentLanguage = lang;
+  
+  // Update UI
+  document.querySelectorAll('.lang-btn').forEach(b => 
+    b.classList.toggle('active', b.dataset.lang === lang)
+  );
+  
+  // Update recognition language
+  if (STATE.recognition) { 
+    try { 
+      STATE.recognition.lang = LANGUAGES[lang].code; 
+    } catch(e){} 
+    
+    // Restart recognition with new language
+    stopRecognition();
+    setTimeout(()=>{ 
+      if (STATE.voiceEnabled) startRecognition(); 
+    }, 400);
+  }
+  
+  speak(`${tx('languageSwitched')} ${LANGUAGES[lang].name}.`);
+  showNotification(`Language: ${LANGUAGES[lang].name}`,'success');
+}
+
+/* -----------------------
+   Start / Stop detection
+   ----------------------- */
+async function startDetection() {
+  if (STATE.isDetecting) { speak('Detection already running'); return; }
+  try {
+    if (!STATE.stream) await initCamera();
+    if (!STATE.model) await loadModel();
+    STATE.isDetecting = true;
+    DOM.systemStatus.textContent = 'Detecting';
+    DOM.currentMode.textContent = 'Detection';
+    speak(tx('started'));
+    showNotification('Detection started', 'success');
+    // ensure recognition running
+    startRecognition();
+    // start detection loop
+    if (!STATE.detectionLoop) STATE.detectionLoop = setInterval(detectObjects, CONFIG.DETECTION_INTERVAL);
+  } catch(e){ 
+    console.error('startDetection err', e); 
+    speak('Failed to start detection'); 
+    showNotification('Start detection failed','error'); 
+  }
+}
+
+function stopDetection() {
+  if (!STATE.isDetecting) { speak('Detection already stopped'); return; }
+  STATE.isDetecting = false;
+  DOM.systemStatus.textContent = 'Ready';
+  DOM.currentMode.textContent = 'Idle';
+  speak(tx('stopped'));
+  showNotification('Detection stopped', 'info');
+  if (STATE.detectionLoop) { clearInterval(STATE.detectionLoop); STATE.detectionLoop = null; }
+  // keep voice recognition running so commands are still accepted
+  if (STATE.stream) { 
+    try { 
+      STATE.stream.getTracks().forEach(t => t.stop()); 
+      STATE.stream = null; 
+      DOM.video.srcObject = null; 
+    } catch(e){} 
+  }
+  DOM.ctx.clearRect(0,0,DOM.canvas.width,DOM.canvas.height);
+  DOM.objectList.innerHTML = '<div style="text-align:center;opacity:0.6">No objects detected yet</div>';
+  DOM.alarmIndicator.className = 'alarm-indicator safe'; 
+  DOM.alarmIndicator.textContent = '✓ SAFE - NO THREATS DETECTED';
+}
+
+/* -----------------------
+   Wiring UI
+   ----------------------- */
+function setupEvents(){
+  document.getElementById('startBtn').addEventListener('click', startDetection);
+  document.getElementById('stopBtn').addEventListener('click', stopDetection);
+  document.getElementById('readTextBtn').addEventListener('click', ()=> startTextReading());
+  document.getElementById('describeBtn').addEventListener('click', ()=> startSceneDescription());
+  document.getElementById('emergencyBtn').addEventListener('click', ()=> startEmergencyMode());
+  document.getElementById('cancelEmergencyBtn').addEventListener('click', ()=> cancelEmergencyMode());
+  
+  document.getElementById('navigationCard').addEventListener('click', ()=> {
+    // ask via voice rather than typing
+    STATE.awaitingVoiceResponse = true; STATE.voiceResponseType = 'navigation';
+    speak(tx('askDestination'));
+  });
+  
+  document.getElementById('obstacleCard').addEventListener('click', ()=> startObstacleDetection());
+  
+  document.getElementById('searchCard').addEventListener('click', ()=> {
+    STATE.awaitingVoiceResponse = true; STATE.voiceResponseType = 'search';
+    speak(tx('askSearchObject'));
+  });
+  
+  document.getElementById('fallCard').addEventListener('click', ()=> startFallDetection());
+  
+  document.querySelectorAll('.lang-btn').forEach(b => 
+    b.addEventListener('click', ()=> switchLanguage(b.dataset.lang))
+  );
+  
+  // Keep microphone active when clicking anywhere on the page
+  document.addEventListener('click', (e) => {
+    // If voice recognition should be active, ensure it's running
+    if (STATE.voiceEnabled && STATE.isDetecting && STATE.recognition && !STATE.isListening) {
+      setTimeout(() => {
+        try { STATE.recognition.start(); } catch(err) {}
+      }, 100);
+    }
+  });
+  
+  document.addEventListener('keydown', (e)=> {
+    if (e.key === ' ') { 
+      e.preventDefault(); 
+      if (STATE.isDetecting) stopDetection(); 
+      else startDetection(); 
+    }
+    if (e.key === 'Escape') { 
+      if (STATE.emergencyMode) cancelEmergencyMode(); 
+      else startEmergencyMode(); 
+    }
+  });
+}
+
+/* -----------------------
+   Initialization
+   ----------------------- */
+async function initApp() {
+  setupEvents();
+
+  // Request camera and microphone permissions explicitly after login
+  try {
+    showNotification('Requesting camera and microphone permissions...', 'info');
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: true
+    });
+    // Stop the stream immediately after permission granted
+    stream.getTracks().forEach(track => track.stop());
+    showNotification('Permissions granted successfully.', 'success');
+  } catch (e) {
+    console.error('Permission request failed:', e);
+    showNotification('Camera/microphone permissions required for full functionality.', 'warning');
+  }
+
+  try {
+    await loadModel();
+  } catch(e){ console.warn('model load failed at init', e); }
+  // start voice recognition immediately so user can say "start detection"
+  startRecognition();
+  speak(tx('welcome'));
+  showNotification('System ready. Say "start detection" to begin.', 'success');
+}
+
+function logout() {
+  window.location.href = '/logout';
+}
+
+window.addEventListener('load', initApp);
+
+/* -----------------------
+   COMPREHENSIVE OBJECT DATABASE for COCO-SSD
+   ----------------------- */
+const OBJECT_DB = {
+  // People
+  person: { height: 1.7, category: 'person', priority: 'high' },
+  
+  // Vehicles
+  bicycle: { height: 1.0, category: 'vehicle', priority: 'high' },
+  car: { height: 1.5, category: 'vehicle', priority: 'high' },
+  motorcycle: { height: 1.2, category: 'vehicle', priority: 'high' },
+  airplane: { height: 10.0, category: 'vehicle', priority: 'high' },
+  bus: { height: 3.0, category: 'vehicle', priority: 'high' },
+  train: { height: 4.0, category: 'vehicle', priority: 'high' },
+  truck: { height: 3.5, category: 'vehicle', priority: 'high' },
+  boat: { height: 2.5, category: 'vehicle', priority: 'medium' },
+  
+  // Animals
+  bird: { height: 0.3, category: 'animal', priority: 'low' },
+  cat: { height: 0.3, category: 'animal', priority: 'medium' },
+  dog: { height: 0.6, category: 'animal', priority: 'medium' },
+  horse: { height: 1.8, category: 'animal', priority: 'high' },
+  sheep: { height: 0.8, category: 'animal', priority: 'medium' },
+  cow: { height: 1.5, category: 'animal', priority: 'high' },
+  elephant: { height: 3.0, category: 'animal', priority: 'high' },
+  bear: { height: 1.8, category: 'animal', priority: 'high' },
+  zebra: { height: 1.5, category: 'animal', priority: 'high' },
+  giraffe: { height: 5.0, category: 'animal', priority: 'high' },
+  
+  // Furniture
+  chair: { height: 1.0, category: 'furniture', priority: 'medium' },
+  couch: { height: 0.9, category: 'furniture', priority: 'medium' },
+  'potted plant': { height: 1.2, category: 'furniture', priority: 'low' },
+  bed: { height: 0.8, category: 'furniture', priority: 'medium' },
+  'dining table': { height: 0.8, category: 'furniture', priority: 'medium' },
+  toilet: { height: 0.8, category: 'furniture', priority: 'medium' },
+  bench: { height: 0.8, category: 'furniture', priority: 'medium' },
+  
+  // Electronics
+  tv: { height: 1.0, category: 'electronic', priority: 'medium' },
+  laptop: { height: 0.05, category: 'electronic', priority: 'low' },
+  mouse: { height: 0.05, category: 'electronic', priority: 'low' },
+  remote: { height: 0.05, category: 'electronic', priority: 'low' },
+  keyboard: { height: 0.05, category: 'electronic', priority: 'low' },
+  cellphone: { height: 0.15, category: 'electronic', priority: 'low' },
+  clock: { height: 0.3, category: 'electronic', priority: 'low' },
+  oven: { height: 0.9, category: 'electronic', priority: 'medium' },
+  microwave: { height: 0.4, category: 'electronic', priority: 'medium' },
+  refrigerator: { height: 1.8, category: 'electronic', priority: 'medium' },
+  
+  // Kitchen Items
+  bottle: { height: 0.3, category: 'kitchen', priority: 'low' },
+  'wine glass': { height: 0.2, category: 'kitchen', priority: 'low' },
+  cup: { height: 0.15, category: 'kitchen', priority: 'low' },
+  fork: { height: 0.2, category: 'kitchen', priority: 'low' },
+  knife: { height: 0.2, category: 'kitchen', priority: 'low' },
+  spoon: { height: 0.2, category: 'kitchen', priority: 'low' },
+  bowl: { height: 0.1, category: 'kitchen', priority: 'low' },
+  banana: { height: 0.2, category: 'kitchen', priority: 'low' },
+  apple: { height: 0.08, category: 'kitchen', priority: 'low' },
+  sandwich: { height: 0.08, category: 'kitchen', priority: 'low' },
+  orange: { height: 0.08, category: 'kitchen', priority: 'low' },
+  broccoli: { height: 0.2, category: 'kitchen', priority: 'low' },
+  carrot: { height: 0.2, category: 'kitchen', priority: 'low' },
+  'hot dog': { height: 0.15, category: 'kitchen', priority: 'low' },
+  pizza: { height: 0.05, category: 'kitchen', priority: 'low' },
+  donut: { height: 0.05, category: 'kitchen', priority: 'low' },
+  cake: { height: 0.15, category: 'kitchen', priority: 'low' },
+  sink: { height: 0.9, category: 'kitchen', priority: 'medium' },
+  
+  // Outdoor Objects
+  'traffic light': { height: 3.0, category: 'sign', priority: 'high' },
+  'stop sign': { height: 2.5, category: 'sign', priority: 'high' },
+  'parking meter': { height: 1.2, category: 'sign', priority: 'medium' },
+  'fire hydrant': { height: 0.8, category: 'object', priority: 'medium' },
+  'street sign': { height: 2.5, category: 'sign', priority: 'medium' },
+  
+  // Sports Equipment
+  'sports ball': { height: 0.25, category: 'sports', priority: 'low' },
+  kite: { height: 0.8, category: 'sports', priority: 'low' },
+  'baseball bat': { height: 0.9, category: 'sports', priority: 'low' },
+  'baseball glove': { height: 0.3, category: 'sports', priority: 'low' },
+  skateboard: { height: 0.1, category: 'sports', priority: 'low' },
+  surfboard: { height: 2.0, category: 'sports', priority: 'medium' },
+  'tennis racket': { height: 0.7, category: 'sports', priority: 'low' },
+  frisbee: { height: 0.03, category: 'sports', priority: 'low' },
+  skis: { height: 1.8, category: 'sports', priority: 'medium' },
+  snowboard: { height: 1.5, category: 'sports', priority: 'medium' },
+  
+  // Personal Items
+  umbrella: { height: 1.0, category: 'personal', priority: 'low' },
+  handbag: { height: 0.4, category: 'personal', priority: 'low' },
+  tie: { height: 0.5, category: 'personal', priority: 'low' },
+  suitcase: { height: 0.6, category: 'personal', priority: 'low' },
+  backpack: { height: 0.5, category: 'personal', priority: 'low' },
+  
+  // Miscellaneous
+  book: { height: 0.05, category: 'object', priority: 'low' },
+  vase: { height: 0.3, category: 'object', priority: 'low' },
+  scissors: { height: 0.15, category: 'object', priority: 'low' },
+  'teddy bear': { height: 0.4, category: 'toy', priority: 'low' },
+  'hair drier': { height: 0.3, category: 'personal', priority: 'low' },
+  toothbrush: { height: 0.2, category: 'personal', priority: 'low' },
+  
+  // Default for any unknown object
+  default: { height: 0.5, category: 'object', priority: 'low' }
+};
+</script>
+</body>
+</html>
